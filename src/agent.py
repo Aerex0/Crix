@@ -7,7 +7,6 @@ from livekit.agents import (
     AgentServer,
     AgentSession,
     JobContext,
-    JobProcess,
     RunContext,
     cli,
     function_tool,
@@ -43,7 +42,7 @@ class Assistant(Agent):
 server = AgentServer()
 
 @server.rtc_session(agent_name="my-agent")
-async def my_agent(ctx: agents.JobContext):
+async def my_agent(ctx: JobContext):
     session = AgentSession(
         stt=inference.STT(model="deepgram/nova-3", language="multi"),
         llm=inference.LLM(model="openai/gpt-4.1-mini"),
@@ -72,4 +71,4 @@ async def my_agent(ctx: agents.JobContext):
 
 
 if __name__ == "__main__":
-    agents.cli.run_app(server)
+    cli.run_app(server)
