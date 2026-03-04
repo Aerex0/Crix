@@ -8,4 +8,5 @@ dependencies = [
     "livekit-agents[silero,turn-detector]~=1.4",
     "livekit-plugins-noise-cancellation~=0.2",
     "python-dotenv>=1.2.2",
+    "tavily-python>=0.7.22",
 ]
