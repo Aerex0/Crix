@@ -45,11 +45,12 @@ server = AgentServer()
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: agents.JobContext):
     session = AgentSession(
-        stt="deepgram/nova-3:multi",
-        llm="openai/gpt-4.1-mini",
-        tts="elevenlabs/eleven_turbo_v2_5:iP95p4xoKVk53GoZ742B",
+        stt=inference.STT(model="deepgram/nova-3", language="multi"),
+        llm=inference.LLM(model="openai/gpt-4.1-mini"),
+        tts=inference.TTS(model="elevenlabs/eleven_turbo_v2_5",voice="iP95p4xoKVk53GoZ742B"),
         vad=silero.VAD.load(),
         turn_detection=MultilingualModel(),
+        preemptive_generation=True,
     )
 
     await session.start(
@@ -57,13 +58,16 @@ async def my_agent(ctx: agents.JobContext):
         agent=Assistant(),
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: noise_cancellation.BVCTelephony() if params.participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP else noise_cancellation.BVC(),
+                noise_cancellation=lambda params: noise_cancellation.BVCTelephony()
+                if params.participant.kind 
+                == rtc.ParticipantKind.PARTICIPANT_KIND_SIP 
+                else noise_cancellation.BVC(),
             ),
         ),
     )
 
     await session.generate_reply(
-        instructions="Greet the user and offer your assistance."
+        instructions="Greet your boss and offer your assistance."
     )
 
 
