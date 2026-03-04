@@ -1,9 +1,23 @@
 from dotenv import load_dotenv
 
 from livekit import agents, rtc
-from livekit.agents import AgentServer,AgentSession, Agent, room_io
+from livekit.agents import (
+    Agent,
+    AgentServer,
+    AgentSession,
+    JobContext,
+    JobProcess,
+    RunContext,
+    cli,
+    function_tool,
+    inference,
+    room_io,
+)
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
+
+from tavily import TavilyClient
+
 
 load_dotenv(".env")
 
@@ -11,11 +25,24 @@ load_dotenv(".env")
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""You are a helpful voice AI assistant.
+            instructions="""
+            You are a helpful voice AI assistant.
             You eagerly assist users with their questions by providing information from your extensive knowledge.
             Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
+            You are curious, friendly, and have a sense of humor.
+            """,
         )
+        
+    @function_tool
+    async def web_search(self, context: RunContext, query: str):
+        """Whenever the user asks for information that requires searching the web, use this tool.
+           Do not use your own knowledge, always search for the most up-to-date information.
+        Args:
+            query: The search query
+        """
+        client = TavilyClient()
+        response = client.search(query, search_depth="advanced")
+        return response
 
 server = AgentServer()
 
