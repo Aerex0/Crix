@@ -27,7 +27,7 @@ class Assistant(Agent):
         super().__init__(
             instructions=SYSTEM_PROMPT,
         )
-        
+
     @function_tool
     async def web_search(self, context: RunContext, query: str):
         """Whenever the user asks for information that requires searching the web, use this tool.
@@ -66,7 +66,7 @@ async def my_agent(ctx: JobContext):
     )
 
     await session.generate_reply(
-        instructions="Greet your boss and offer your assistance."
+        instructions="Welcome your boss and offer your assistance."
     )
 
 
