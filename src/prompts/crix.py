@@ -41,15 +41,14 @@ SYSTEM_PROMPT=f"""
 			Switch to workspace 2:        xdotool key super+2
 			Switch to workspace 3:        xdotool key super+3
 			Switch to workspace 4:        xdotool key super+4
-			Close current window:         xdotool key super+Q
-			Switch between apps:          xdotool key alt+Tab
+			Close current window:         xdotool key super+q
+			Minimize the workspace:       xdotool key super
 
 			Rules:
 			- Never construct keyboard shortcuts outside this list
 			- If the user asks for something not covered here, say you don't have that command available
 """
 			#  Open application:			  xdotool key super && sleep 0.5 && xdotool type "{app_name}" && sleep 0.5 && xdotool key Return
-			# Minimize the workspace:       xdotool key super
 			# Open a New tab:				  xdotool key ctrl+T
 			# Close a tab: 				  xdotool key ctrl+W
 			# open a new window:			  xdotool key ctrl+N
