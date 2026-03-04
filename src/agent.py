@@ -17,7 +17,6 @@ from livekit.agents import (
 )
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
-
 from tavily import TavilyClient
 
 load_dotenv(".env")
@@ -54,7 +53,7 @@ class Assistant(Agent):
         - Never chain commands with && or | , never do it.
         - If you  are asked to read or write a content from or to a file, then first use bash to find out it's actual path(if it exists or if it doesn't exist then ask the user where to create it) then use that path to read or write content
         """
-        
+
         result = subprocess.run(
             command, shell=True, capture_output=True, text=True
         )
