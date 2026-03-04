@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from prompts.crix import SYSTEM_PROMPT
 import subprocess
+import time
 
 from livekit import agents, rtc
 from livekit.agents import (
@@ -58,6 +59,10 @@ class Assistant(Agent):
             command, shell=True, capture_output=True, text=True
         )
         return result.stdout or result.stderr
+
+    @function_tool
+    async def get_time(self, context: RunContext):
+        return time.ctime()
 
 server = AgentServer()
 
