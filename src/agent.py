@@ -14,10 +14,34 @@ from livekit.agents import (
     function_tool,
     inference,
     room_io,
+    RoomInputOptions,
 )
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from tavily import TavilyClient
+
+from tools import (
+    type_text,
+    press_key,
+    type_and_submit,
+    paste_text,
+    move_mouse,
+    click,
+    double_click,
+    scroll,
+    switch_workspace,
+    focus_window,
+    list_open_windows,
+    open_app,
+    read_screen_text,
+    get_clipboard,
+    select_all_and_copy,
+    run_command_silent,
+    get_screen_size,
+    get_mouse_position,
+    web_search,
+    get_time,
+)
 
 load_dotenv(".env")
 
@@ -25,41 +49,29 @@ class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
             instructions=SYSTEM_PROMPT,
+            tools=[
+                type_text,
+                press_key,
+                type_and_submit,
+                paste_text,
+                move_mouse,
+                click,
+                double_click,
+                scroll,
+                switch_workspace,
+                focus_window,
+                list_open_windows,
+                open_app,
+                read_screen_text,
+                get_clipboard,
+                select_all_and_copy,
+                run_command_silent,
+                get_screen_size,
+                get_mouse_position,
+                web_search,
+                get_time,
+            ],
         )
-
-    @function_tool
-    async def web_search(self, context: RunContext, query: str):
-        """When asked for information that requires searching the web, use this tool.
-           Do not use your own knowledge, always search for the most up-to-date information.
-        Args:
-            query: The search query
-        """
-        client = TavilyClient()
-        response = client.search(query, search_depth="advanced")
-        return response
-    
-    @function_tool
-    async def run_bash(self, context: RunContext, command: str):
-        """
-        Use this tool to run shell commands.
-
-        Rules you must follow:
-        - Never run destructive commands such as rm, rmdir, mv, dd, mkfs, chmod, chown, kill, or anything that modifies or deletes files unless the user has explicitly and clearly requested it by name.
-        - If the user's request is ambiguous, ask a clarifying question instead of guessing.
-        - You can read, write, switch  workspaces, close them or open them when the user asks that's it.
-        - If a command might take a long time (e.g. find on /, large downloads), warn the user first.
-        - Never chain commands with && or | , never do it.
-        - If you  are asked to read or write a content from or to a file, then first use bash to find out it's actual path(if it exists or if it doesn't exist then ask the user where to create it) then use that path to read or write content
-        """
-
-        result = subprocess.run(
-            command, shell=True, capture_output=True, text=True
-        )
-        return result.stdout or result.stderr
-
-    @function_tool
-    async def get_time(self, context: RunContext):
-        return time.ctime()
 
 server = AgentServer()
 
