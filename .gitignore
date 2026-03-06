@@ -6,5 +6,5 @@
 .vscode
 __pycache__/
 *.pyc
-crix-capabilities.txt
+crix-capabilities.md
 .gitignore
