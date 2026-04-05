@@ -15,7 +15,6 @@ from typing import Optional
 from browser_use import Agent, Browser
 from config import get_chrome_profile
 
-
 class BrowserBackend:
     """Manages browser-use agent for web automation tasks."""
 
