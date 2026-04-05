@@ -15,6 +15,7 @@ from typing import Optional
 from browser_use import Agent, Browser
 from config import get_chrome_profile
 
+
 class BrowserBackend:
     """Manages browser-use agent for web automation tasks."""
 
@@ -101,6 +102,58 @@ class BrowserBackend:
 
             return self.browser
 
+    def _format_step_log(
+        self, step_num: int, model_output, action_result, error: Optional[str] = None
+    ) -> str:
+        """Format a single step into a readable log string."""
+        lines = []
+
+        # Step header
+        lines.append(f"📍 Step {step_num}:")
+
+        # Agent's thinking and reasoning
+        if model_output:
+            current_state = model_output.current_state
+
+            if current_state.evaluation_previous_goal:
+                lines.append(
+                    f"  🎯 Previous goal: {current_state.evaluation_previous_goal}"
+                )
+
+            if current_state.memory:
+                lines.append(f"  💭 Memory: {current_state.memory}")
+
+            if current_state.next_goal:
+                lines.append(f"  🎯 Next goal: {current_state.next_goal}")
+
+            # Actions taken in this step
+            if model_output.action:
+                for action in model_output.action:
+                    action_dict = action.model_dump(exclude_none=True, mode="json")
+                    action_name = list(action_dict.keys())[0]
+                    action_params = action_dict[action_name]
+
+                    if action_params:
+                        params_str = ", ".join(
+                            f"{k}={repr(v)}" for k, v in action_params.items()
+                        )
+                        lines.append(f"  ▶️  {action_name}: {params_str}")
+                    else:
+                        lines.append(f"  ▶️  {action_name}")
+
+        # Result of the action
+        if action_result:
+            if action_result.extracted_content:
+                content = action_result.extracted_content
+                if len(content) > 200:
+                    content = content[:197] + "..."
+                lines.append(f"  📄 Result: {content}")
+
+            if error:
+                lines.append(f"  ❌ Error: {error}")
+
+        return "\n".join(lines)
+
     async def execute_task(self, task: str, max_steps: int = 30) -> str:
         """
         Execute a web automation task using browser-use agent.
@@ -110,7 +163,7 @@ class BrowserBackend:
             max_steps: Maximum steps the agent can take
 
         Returns:
-            Detailed result with success/failure status, actions taken, and errors
+            Detailed result with step-by-step logs, final result, and any errors
         """
         try:
             browser = await self._get_or_create_browser()
@@ -136,36 +189,66 @@ class BrowserBackend:
                     f"This may indicate a configuration or initialization issue."
                 )
 
+            # Build step-by-step log
+            step_logs = []
+            model_outputs = (
+                history.model_outputs() if hasattr(history, "model_outputs") else []
+            )
+            action_results = (
+                history.action_results() if hasattr(history, "action_results") else []
+            )
+            errors = history.errors() if hasattr(history, "errors") else []
+
+            # Get URLs visited
+            urls = history.urls() if hasattr(history, "urls") else []
+
+            for i in range(len(history.history)):
+                model_output = model_outputs[i] if i < len(model_outputs) else None
+                result = action_results[i] if i < len(action_results) else None
+                error = errors[i] if i < len(errors) else None
+
+                step_log = self._format_step_log(i + 1, model_output, result, error)
+                step_logs.append(step_log)
+
+            # Combine step logs
+            step_by_step_log = "\n\n".join(step_logs)
+
             # Extract the final result from history
             final_result = history.final_result()
 
-            # Get action history if available
-            action_summary = ""
-            if hasattr(history, "actions") and history.actions:
-                action_count = len(history.actions)
-                action_summary = f"\n📊 Actions taken: {action_count} steps"
+            # Build the complete report
+            report_parts = []
 
-                # Include details of last few actions for context
-                last_actions = (
-                    history.actions[-3:] if action_count > 3 else history.actions
-                )
-                action_details = []
-                for action in last_actions:
-                    action_str = str(action)
-                    # Truncate long action strings
-                    if len(action_str) > 100:
-                        action_str = action_str[:97] + "..."
-                    action_details.append(f"  • {action_str}")
+            # Add step-by-step logs
+            if step_by_step_log:
+                report_parts.append(step_by_step_log)
 
-                if action_details:
-                    action_summary += "\n" + "\n".join(action_details)
-
-            # Check if the task actually succeeded
+            # Add final result section
             if final_result:
-                # Task completed with a result
-                result_str = str(final_result)
+                report_parts.append(f"\n📄 Final Result:\n{final_result}")
+            else:
+                # Check if max_steps was reached
+                if len(history.history) >= max_steps:
+                    report_parts.append(
+                        f"\n⚠️ Reached maximum steps ({max_steps}) without completion"
+                    )
+                else:
+                    report_parts.append("\n⚠️ No final result returned")
 
-                # Check for common failure indicators in the result
+            # Add errors summary if any
+            if history.has_errors():
+                error_list = [e for e in errors if e]
+                if error_list:
+                    report_parts.append(f"\n⚠️ Warnings/Errors encountered:")
+                    for err in error_list:
+                        report_parts.append(f"  - {err}")
+
+            # Combine everything
+            full_report = "\n\n".join(report_parts)
+
+            # Determine overall status
+            if final_result:
+                result_str = str(final_result)
                 failure_indicators = [
                     "failed",
                     "error",
@@ -175,40 +258,17 @@ class BrowserBackend:
                     "unsuccessful",
                     "did not work",
                 ]
-
                 result_lower = result_str.lower()
                 appears_failed = any(
                     indicator in result_lower for indicator in failure_indicators
                 )
 
                 if appears_failed:
-                    return (
-                        f"⚠️ Browser task completed with ERRORS:\n"
-                        f"Result: {result_str}{action_summary}\n\n"
-                        f"The task may have partially failed. Please verify the result."
-                    )
+                    return f"⚠️ Browser task completed with ISSUES:\n\n{full_report}"
                 else:
-                    return (
-                        f"✅ Browser task SUCCEEDED:\n"
-                        f"Result: {result_str}{action_summary}"
-                    )
+                    return f"✅ Browser task SUCCEEDED:\n\n{full_report}"
             else:
-                # No final result, but history exists
-                # Check if max_steps was reached
-                if hasattr(history, "actions") and len(history.actions) >= max_steps:
-                    return (
-                        f"⚠️ Browser task reached MAX STEPS ({max_steps}) without completion:\n"
-                        f"Task: {task}{action_summary}\n\n"
-                        f"The task may be too complex or require more steps. "
-                        f"Consider breaking it into smaller tasks or increasing max_steps."
-                    )
-                else:
-                    return (
-                        f"⚠️ Browser task completed but returned NO RESULT:\n"
-                        f"Task: {task}{action_summary}\n\n"
-                        f"The agent finished but didn't provide a final result. "
-                        f"This may indicate the task was ambiguous or couldn't be completed."
-                    )
+                return f"⚠️ Browser task completed:\n\n{full_report}"
 
         except ValueError as e:
             # LLM configuration error
