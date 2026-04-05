@@ -194,6 +194,18 @@ Once configured, you can use natural language to control browsers:
 - **Multi-step automation** — Can navigate, click, fill forms, extract data
 - **Voice-controlled** — Just describe what you want in natural language
 - **Smart task routing** — Crix knows when to use browser automation vs. simple web search
+- **Detailed feedback** — Returns step-by-step logs so Crix knows exactly what happened
+
+### What Crix Can Do
+
+Crix can automate any web task via voice:
+- **Email**: "Check my Gmail inbox", "Any unread emails?"
+- **Messaging**: "Send a WhatsApp message to John saying hello"
+- **Shopping**: "Add wireless mouse to my Amazon cart"
+- **Research**: "Search Google for X and summarize"
+- **Forms**: "Fill out the application at example.com"
+- **Social**: "Check my Twitter/LinkedIn notifications"
+- **General**: "Go to example.com and do X"
 
 ---
 
