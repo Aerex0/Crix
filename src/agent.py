@@ -35,6 +35,7 @@ from tools import (
     web_search,
     get_time,
     send_whatsapp_message,
+    browse_web,
 )
 
 load_dotenv(".env")
@@ -65,6 +66,7 @@ class Assistant(Agent):
                 web_search,
                 get_time,
                 send_whatsapp_message,
+                browse_web,
             ],
         )
 

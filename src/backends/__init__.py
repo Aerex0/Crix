@@ -7,6 +7,7 @@ This package provides backend implementations for:
 - clipboard: wl-clipboard wrapper
 - screenshot: grim wrapper
 - legacy: xdotool fallback for unsupported features (scroll)
+- browser: Web automation via browser-use
 """
 
 from . import ydotool
@@ -14,6 +15,7 @@ from . import gnome
 from . import clipboard
 from . import screenshot
 from . import legacy
+from . import browser
 
 __all__ = [
     "ydotool",
@@ -21,4 +23,5 @@ __all__ = [
     "clipboard",
     "screenshot",
     "legacy",
+    "browser",
 ]

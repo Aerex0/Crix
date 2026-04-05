@@ -18,6 +18,7 @@
 - 🖱️ **Mouse control** — Move, click, double-click, and scroll anywhere on screen
 - 🪟 **Window & Workspace management** — Switch workspaces, focus windows, list open apps
 - 📋 **Clipboard integration** — Read and write clipboard content using `wl-clipboard`
+- 🌐 **Browser automation** — Navigate websites, fill forms, shop online, check email via natural language
 - 🔍 **Live web search** — Fetches up-to-date information from the web using Tavily
 - 🖥️ **Shell command execution** — Run safe, non-destructive shell commands on demand
 - 🔇 **Noise cancellation** — Intelligent audio filtering for cleaner voice input
@@ -38,6 +39,7 @@
 | Clipboard | `wl-clipboard` |
 | Screenshots | `grim` |
 | Scroll (fallback) | `xdotool` |
+| Browser Automation | [browser-use](https://github.com/browser-use/browser-use) |
 | Web Search | [Tavily](https://tavily.com) |
 | Package Manager | [uv](https://github.com/astral-sh/uv) |
 
@@ -115,9 +117,83 @@ grim /tmp/test.png && ls -la /tmp/test.png
    LIVEKIT_API_KEY=your_api_key
    LIVEKIT_API_SECRET=your_api_secret
    TAVILY_API_KEY=your_tavily_key
+   
+   # For browser automation, configure ONE of these:
+   OPENAI_API_KEY=sk-...                    # Recommended
+   # ANTHROPIC_API_KEY=sk-ant-...           # Alternative
+   # GOOGLE_API_KEY=...                     # Alternative
+   # OLLAMA_MODEL=llama2                    # Local/free alternative
    ```
 
-   > **Note:** STT (Deepgram), LLM (OpenAI), and TTS (ElevenLabs) are billed and managed through your LiveKit account — no separate API keys required.
+   > **Note:** STT (Deepgram), LLM (OpenAI), and TTS (ElevenLabs) for voice interaction are billed and managed through your LiveKit account — no separate API keys required.
+   > 
+   > Browser automation uses a separate LLM and requires its own API key (cannot use LiveKit's managed LLM).
+
+---
+
+## Browser Automation Setup
+
+Crix can automate complex web tasks using your real Chrome browser profile, preserving all your logins and settings.
+
+### Prerequisites
+
+Browser automation is already installed with Crix. You just need:
+
+1. **An LLM API key** (browser-use cannot use LiveKit's managed LLM)
+2. **Google Chrome** installed on your system
+
+### Configure LLM for Browser Automation
+
+Add ONE of the following to your `.env` file:
+
+```bash
+# Option 1: OpenAI (Recommended - most tested)
+OPENAI_API_KEY=sk-...
+BROWSER_USE_OPENAI_MODEL=gpt-4o-mini  # Optional: override default model
+
+# Option 2: Anthropic Claude
+ANTHROPIC_API_KEY=sk-ant-...
+BROWSER_USE_ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+
+# Option 3: Google Gemini  
+GOOGLE_API_KEY=...
+BROWSER_USE_GOOGLE_MODEL=gemini-2.0-flash-exp
+
+# Option 4: Ollama (Local, free, no API key needed)
+OLLAMA_MODEL=llama2  # or llama3, mistral, etc.
+```
+
+### Chrome Profile Configuration (Optional)
+
+By default, Crix uses your Default Chrome profile. To use a different profile:
+
+```bash
+# List available Chrome profiles
+ls ~/.config/google-chrome/
+
+# Set in .env
+CRIX_CHROME_PROFILE=Profile 1  # or Profile 2, Profile 3, etc.
+```
+
+### Voice Commands
+
+Once configured, you can use natural language to control browsers:
+
+```
+"Search Google for best Linux laptops and summarize the results"
+"Add a mechanical keyboard to my Amazon cart"
+"Check my Gmail and tell me how many unread emails I have"
+"Fill out the contact form at example.com"
+"Go to LinkedIn and check my notifications"
+"Compare prices for wireless mice on Amazon and Newegg"
+```
+
+### How It Works
+
+- **Uses your real Chrome profile** — Already logged into Gmail, Amazon, etc.
+- **Multi-step automation** — Can navigate, click, fill forms, extract data
+- **Voice-controlled** — Just describe what you want in natural language
+- **Smart task routing** — Crix knows when to use browser automation vs. simple web search
 
 ---
 
@@ -149,10 +225,15 @@ Before using Crix, **you may want to update the system prompt** to match your pr
 
 Crix comes with a set of built-in tools it can call autonomously based on your voice commands:
 
+### 🌐 Browser Automation
+| Tool | Description |
+|---|---|
+| `browse_web` | AI-powered browser automation for complex web tasks (navigation, forms, shopping, email, etc.) |
+
 ### 🔍 Web & Time
 | Tool | Description |
 |---|---|
-| `web_search` | Search the web for up-to-date information using Tavily |
+| `web_search` | Search the web for up-to-date information using Tavily (fast, for simple queries) |
 | `get_time` | Get the current system date and time |
 
 ### ⌨️ Keyboard
@@ -196,18 +277,29 @@ Crix comes with a set of built-in tools it can call autonomously based on your v
 
 ## Example Commands
 
+### Desktop Control
 ```
 "Open a terminal"               → Launches gnome-terminal
 "Open Firefox"                  → Launches Firefox
 "Switch to Firefox"             → Focuses the Firefox window
 "Switch to workspace 3"         → Switches to virtual desktop 3
 "Type hello world and send it"  → Types and submits text
-"What time is it?"              → Returns current date and time
-"Search for the latest AI news" → Performs a live web search
 "Press Ctrl+Z"                  → Sends the undo shortcut
 "Select all and copy"           → Copies all text in the focused window
 "What windows are open?"        → Lists all open windows
 "Close this window"             → Sends Alt+F4
+```
+
+### Web & Browser Automation
+```
+"What time is it?"                                    → Returns current date and time
+"Search for the latest AI news"                      → Quick web search via Tavily
+"Search Google for best Linux laptops and summarize" → Opens browser and researches
+"Add a wireless mouse to my Amazon cart"             → Navigates Amazon and adds to cart
+"Check my Gmail inbox"                               → Opens Gmail and checks emails
+"Fill out the form at example.com"                   → Automates form filling
+"What's the price of Bitcoin?"                       → Quick factual query
+"Compare mechanical keyboard prices on Amazon"       → Multi-step price comparison
 ```
 
 ---

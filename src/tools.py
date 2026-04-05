@@ -400,3 +400,43 @@ async def run_command_silent(context: RunContext, command: str) -> str:
         return "Command timed out after 8 seconds."
     except Exception as e:
         return f"Error: {e}"
+
+
+# ─────────────────────────────────────────────
+# BROWSER AUTOMATION TOOLS (browser-use)
+# ─────────────────────────────────────────────
+
+from backends.browser import execute_browser_task
+
+
+@function_tool
+async def browse_web(context: RunContext, task: str, max_steps: int = 30) -> str:
+    """
+    Perform complex web automation tasks using an AI browser agent.
+    This tool can navigate websites, click buttons, fill forms, extract information,
+    and complete multi-step workflows automatically.
+
+    Use this for tasks that require:
+    - Navigating multiple pages
+    - Interacting with web forms and buttons
+    - Shopping online (adding items to cart, comparing prices)
+    - Checking social media or email
+    - Filling out applications or surveys
+    - Extracting structured data from websites
+    - Any complex browser-based workflow
+
+    Examples:
+        "Search Google for 'best mechanical keyboards' and summarize the top 3 results"
+        "Go to Amazon and add a Logitech MX Master 3S mouse to my cart"
+        "Fill out the contact form at example.com with my info"
+        "Check my Gmail and tell me how many unread emails I have"
+        "Go to LinkedIn and summarize my latest notifications"
+
+    Note: This uses your real Chrome browser profile, so you'll already be
+    logged into websites like Gmail, Amazon, LinkedIn, etc.
+
+    Args:
+        task: Natural language description of what to accomplish
+        max_steps: Maximum steps the browser agent can take (default 30)
+    """
+    return await execute_browser_task(task, max_steps)
