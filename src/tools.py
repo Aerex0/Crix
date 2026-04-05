@@ -1,37 +1,37 @@
+"""
+Crix voice assistant tools for GNOME on Wayland.
+
+This module provides function tools that can be called by the AI assistant
+to control the desktop environment.
+
+Backends:
+- ydotool: Keyboard and mouse input simulation
+- gnome (gdbus): Workspace and window management
+- wl-clipboard: Clipboard operations
+- grim: Screenshots
+- xdotool (legacy): Scroll only
+"""
+
 import subprocess
+import shlex
 import time
-import tempfile
 import os
 from livekit.agents import function_tool, RunContext
+from tavily import TavilyClient
 
+from backends import ydotool, gnome, clipboard, screenshot, legacy
 
-def _xdo(*args) -> subprocess.CompletedProcess:
-    """Run an xdotool command and return the result."""
-    return subprocess.run(["xdotool"] + list(args), capture_output=True, text=True)
-
-
-def _clip_copy(text: str):
-    """Copy text to clipboard using xclip."""
-    subprocess.run(["xclip", "-selection", "clipboard"], input=text, text=True)
-
-
-def _clip_paste() -> str:
-    """Read clipboard contents using xclip."""
-    result = subprocess.run(
-        ["xclip", "-selection", "clipboard", "-o"],
-        capture_output=True, text=True
-    )
-    return result.stdout
 
 # ─────────────────────────────────────────────
 # REALTIME TOOLS
 # ─────────────────────────────────────────────
 
-@function_tool # working
+
+@function_tool
 async def web_search(context: RunContext, query: str) -> str:
     """
-    When asked for information that requires searching the web, use this tool.
-    Do not use your own knowledge, always search for the most up-to-date information.
+    Search the web for up-to-date information.
+    Use this when asked for current events, facts, or anything requiring recent data.
 
     Args:
         query: The search query
@@ -40,19 +40,22 @@ async def web_search(context: RunContext, query: str) -> str:
     response = client.search(query, search_depth="advanced")
     return f"Web search result: {response}"
 
-@function_tool # working
+
+@function_tool
 async def get_time(context: RunContext) -> str:
     """
-    When asked for the current date and time, use this tool.
-    Do not use your own knowledge, always search for the most up-to-date information.
-    """ 
+    Get the current date and time.
+    Use this when asked about the current time or date.
+    """
     return f"Current date and time: {time.ctime()}"
 
+
 # ─────────────────────────────────────────────
-# KEYBOARD TOOLS
+# KEYBOARD TOOLS (ydotool)
 # ─────────────────────────────────────────────
 
-@function_tool() # working
+
+@function_tool
 async def type_text(context: RunContext, text: str) -> str:
     """
     Type text at the current cursor position, as if physically pressing keys.
@@ -61,25 +64,23 @@ async def type_text(context: RunContext, text: str) -> str:
     Args:
         text: The text to type.
     """
-    _xdo("type", "--delay", "10", "--", text)
-    return f"Typed: {text!r}"
+    return ydotool.type_text(text)
 
 
-@function_tool() # working
+@function_tool
 async def press_key(context: RunContext, key: str) -> str:
     """
     Press a single key or key combination.
     Examples: 'Return', 'Escape', 'ctrl+c', 'super+q', 'alt+Tab', 'ctrl+t', 'ctrl+w'
-    Note: Use 'Return' not 'enter'. Combos like 'ctrl+c' work directly.
+    Note: Use 'Return' or 'enter' for the Enter key. Combos like 'ctrl+c' work directly.
 
     Args:
         key: Key name or combo like 'ctrl+c', 'super+q'.
     """
-    _xdo("key", key)
-    return f"Pressed: {key}"
+    return ydotool.press_key(key)
 
 
-@function_tool() # working
+@function_tool
 async def type_and_submit(context: RunContext, text: str) -> str:
     """
     Type text and immediately press Enter. Useful for sending messages,
@@ -88,12 +89,12 @@ async def type_and_submit(context: RunContext, text: str) -> str:
     Args:
         text: Text to type before pressing Enter.
     """
-    _xdo("type", "--delay", "10", "--", text)
-    _xdo("key", "Return")
-    return f"Typed and submitted: {text!r}"
+    ydotool.type_text(text)
+    time.sleep(0.05)  # Small delay between typing and Enter
+    return ydotool.press_key("Return")
 
 
-@function_tool() # working
+@function_tool
 async def paste_text(context: RunContext, text: str) -> str:
     """
     Paste text instantly using clipboard — much faster than typing for long text.
@@ -102,17 +103,18 @@ async def paste_text(context: RunContext, text: str) -> str:
     Args:
         text: Text to paste.
     """
-    _clip_copy(text)
+    clipboard.copy(text)
     time.sleep(0.05)
-    _xdo("key", "ctrl+v")
+    ydotool.press_key("ctrl+v")
     return f"Pasted {len(text)} characters via clipboard"
 
 
 # ─────────────────────────────────────────────
-# MOUSE TOOLS
+# MOUSE TOOLS (ydotool)
 # ─────────────────────────────────────────────
 
-@function_tool() # working
+
+@function_tool
 async def move_mouse(context: RunContext, x: int, y: int) -> str:
     """
     Move the mouse cursor to absolute screen coordinates.
@@ -121,11 +123,10 @@ async def move_mouse(context: RunContext, x: int, y: int) -> str:
         x: Horizontal position in pixels from left.
         y: Vertical position in pixels from top.
     """
-    _xdo("mousemove_relative", "--sync", str(x), str(y))
-    return f"Mouse moved to ({x}, {y})"
+    return ydotool.move_mouse(x, y, absolute=True)
 
 
-@function_tool() # working
+@function_tool
 async def click(context: RunContext, x: int, y: int, button: int = 1) -> str:
     """
     Move mouse to coordinates and click.
@@ -135,13 +136,10 @@ async def click(context: RunContext, x: int, y: int, button: int = 1) -> str:
         y: Vertical position.
         button: 1=left, 2=middle, 3=right (default 1).
     """
-    _xdo("mousemove_relative", "--sync", str(x), str(y))
-    _xdo("click", str(button))
-    btn_name = {1: "Left", 2: "Middle", 3: "Right"}.get(button, str(button))
-    return f"{btn_name} clicked at ({x}, {y})"
+    return ydotool.click(x, y, button)
 
 
-@function_tool() # working
+@function_tool
 async def double_click(context: RunContext, x: int, y: int) -> str:
     """
     Double-click at given coordinates (e.g. to open files or apps).
@@ -150,115 +148,126 @@ async def double_click(context: RunContext, x: int, y: int) -> str:
         x: Horizontal position.
         y: Vertical position.
     """
-    _xdo("mousemove_relative", "--sync", str(x), str(y))
-    _xdo("click", "--repeat", "2", "--delay", "100", "1")
-    return f"Double-clicked at ({x}, {y})"
+    return ydotool.double_click(x, y)
 
 
-@function_tool() # working
+@function_tool
 async def scroll(context: RunContext, direction: str, amount: int = 3) -> str:
     """
     Scroll the mouse wheel at the current cursor position.
+    Note: Uses xdotool fallback as ydotool doesn't support scroll.
 
     Args:
         direction: 'up' or 'down'.
         amount: Number of scroll ticks (default 3).
     """
-    # xdotool: button 4 = scroll up, button 5 = scroll down
-    button = "4" if direction == "up" else "5"
-    _xdo("click", "--repeat", str(amount), "--delay", "50", button)
-    return f"Scrolled {direction} by {amount}"
+    return legacy.scroll(direction, amount)
 
 
 # ─────────────────────────────────────────────
-# WINDOW & WORKSPACE TOOLS
+# WINDOW & WORKSPACE TOOLS (gdbus/GNOME)
 # ─────────────────────────────────────────────
 
-@function_tool() # working
+
+@function_tool
 async def switch_workspace(context: RunContext, workspace_number: int) -> str:
     """
     Switch to a specific virtual desktop/workspace by number (1-based).
+    Uses native GNOME Shell API for reliable switching.
 
     Args:
         workspace_number: Workspace to switch to (e.g. 1, 2, 3, 4).
     """
-    result = _xdo("set_desktop", str(workspace_number - 1))
-    if result.returncode == 0:
-        return f"Switched to workspace {workspace_number}"
-    return f"Error: {result.stderr}"
+    return gnome.switch_workspace(workspace_number)
 
 
-# @function_tool() # Not sure about this
-# async def focus_window(context: RunContext, app_name: str) -> str:
-#     """
-#     Find and focus a window by application name or window title.
-#     Examples: 'firefox', 'terminal', 'code', 'slack', 'discord'.
-
-#     Args:
-#         app_name: Partial name of the app or window title.
-#     """
-#     result = _xdo("search", "--onlyvisible", "--name", app_name)
-#     if result.stdout.strip():
-#         win_id = result.stdout.strip().split("\n")[0]
-#         _xdo("windowactivate", "--sync", win_id)
-#         return f"Focused window: {app_name}"
-
-#     # Fallback: try by class
-#     result2 = _xdo("search", "--onlyvisible", "--class", app_name)
-#     if result2.stdout.strip():
-#         win_id = result2.stdout.strip().split("\n")[0]
-#         _xdo("windowactivate", "--sync", win_id)
-#         return f"Focused window by class: {app_name}"
-
-#     return f"Could not find a window matching '{app_name}'"
-
-
-@function_tool() # Not sure about this
+@function_tool
 async def list_open_windows(context: RunContext) -> str:
     """
-    List all currently open windows and their titles.
-    Useful to know what apps are running before focusing one.
+    Open the window switcher (Alt+Tab) to show all open windows.
+    The user can then navigate with Tab and select with Enter.
+    Note: This is interactive - it shows the visual switcher overlay.
     """
-    result = _xdo("search", "--onlyvisible", "--name", "")
-    win_ids = result.stdout.strip().split("\n") if result.stdout.strip() else []
-
-    titles = []
-    for wid in win_ids[:20]:
-        t = _xdo("getwindowname", wid)
-        if t.stdout.strip():
-            titles.append(t.stdout.strip())
-
-    if titles:
-        return "Open windows:\n" + "\n".join(f"  - {t}" for t in titles)
-    return "No visible windows found"
+    return gnome.list_open_windows()
 
 
-@function_tool() # working
+@function_tool
+async def focus_window(context: RunContext, app_name: str) -> str:
+    """
+    Search for and focus a window using GNOME Activities search.
+    Opens Activities overview and types the search pattern.
+    The user can press Enter to select the matching window.
+    Examples: 'firefox', 'terminal', 'code', 'slack', 'discord'.
+
+    Args:
+        app_name: Partial name of the app or window title.
+    """
+    return gnome.focus_window(app_name)
+
+
+@function_tool
 async def open_app(context: RunContext, app_command: str) -> str:
     """
     Launch an application or open a file. Runs detached so it doesn't block.
-    Examples: 'alacritty', 'librewolf', 'firefox', 'code', 'brave-browser', 'spotify'.
+    Examples: 'alacritty', 'firefox', 'brave-browser', 'antigravity'.
 
     Args:
         app_command: Shell command or app name to launch.
     """
-    subprocess.Popen(
-        app_command.split(),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True
-    )
-    return f"Launched: {app_command}"
+    try:
+        subprocess.Popen(
+            shlex.split(app_command),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return f"Launched: {app_command}"
+    except Exception as e:
+        return f"Error launching app: {e}"
 
 
 # ─────────────────────────────────────────────
-# SCREEN READING TOOLS
+# CLIPBOARD & SCREEN TOOLS
 # ─────────────────────────────────────────────
 
-@function_tool() # not working
+
+@function_tool
+async def get_clipboard(context: RunContext) -> str:
+    """
+    Read the current clipboard contents.
+    Useful to grab selected text, URLs, or copied content.
+    """
+    content = clipboard.paste()
+    if not content:
+        return "Clipboard is empty."
+    if len(content) > 500:
+        return f"Clipboard (truncated): {content[:500]}..."
+    return f"Clipboard contents: {content}"
+
+
+@function_tool
+async def select_all_and_copy(context: RunContext) -> str:
+    """
+    Press Ctrl+A to select all, then Ctrl+C to copy.
+    Returns the copied text. Great for reading message counts or full text field content.
+    """
+    ydotool.press_key("ctrl+a")
+    time.sleep(0.1)
+    ydotool.press_key("ctrl+c")
+    time.sleep(0.15)
+
+    content = clipboard.paste()
+    if not content:
+        return "Nothing was copied (selection may be empty)."
+    if len(content) > 600:
+        return f"Copied text (truncated): {content[:600]}..."
+    return f"Copied text: {content}"
+
+
+@function_tool
 async def read_screen_text(context: RunContext, region: str = "full") -> str:
     """
-    Screen size is 1920x1080. Take a screenshot and extract all visible text using OCR (tesseract).
+    Take a screenshot and extract all visible text using OCR (tesseract).
     Use this to 'see' what's on screen — count messages, read notifications, check app state.
 
     Args:
@@ -268,32 +277,13 @@ async def read_screen_text(context: RunContext, region: str = "full") -> str:
         import pytesseract
         from PIL import Image
 
-        # Get screen size via xdotool
-        # r = subprocess.run(
-        #     ["xdotool", "getdisplaygeometry"],
-        #     capture_output=True, text=True
-        # )
-        # sw, sh = map(int, r.stdout.strip().split())
-        sw, sh = 1920, 1080
+        # Get screen size dynamically
+        width, height = gnome.get_screen_size()
 
-        region_map = {
-            "full":   (0,       0,       sw,      sh),
-            "top":    (0,       0,       sw,      sh // 2),
-            "bottom": (0,       sh // 2, sw,      sh // 2),
-            "left":   (0,       0,       sw // 2, sh),
-            "right":  (sw // 2, 0,       sw // 2, sh),
-        }
-        x, y, w, h = region_map.get(region, region_map["full"])
+        # Capture screenshot
+        tmp_path = screenshot.capture_screen(region=region, width=width, height=height)
 
-        # Take screenshot with scrot
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-            tmp_path = f.name
-
-        subprocess.run(
-            ["scrot", "-a", f"{x},{y},{w},{h}", tmp_path],
-            capture_output=True
-        )
-
+        # OCR the image
         img = Image.open(tmp_path)
         text = pytesseract.image_to_string(img).strip()
         os.unlink(tmp_path)
@@ -306,48 +296,84 @@ async def read_screen_text(context: RunContext, region: str = "full") -> str:
         return f"Screen text ({region}):\n{text}"
 
     except ImportError:
-        return "Missing deps. Run: uv add pillow pytesseract && sudo apt install tesseract-ocr scrot"
+        return "Missing deps. Run: uv add pillow pytesseract && sudo apt install tesseract-ocr grim"
     except Exception as e:
         return f"Screen read error: {e}"
 
 
-@function_tool() # working
-async def get_clipboard(context: RunContext) -> str:
+@function_tool
+async def get_screen_size(context: RunContext) -> str:
     """
-    Read the current clipboard contents.
-    Useful to grab selected text, URLs, or copied content.
+    Get the current screen resolution.
     """
-    content = _clip_paste()
-    if not content:
-        return "Clipboard is empty."
-    if len(content) > 500:
-        return f"Clipboard (truncated): {content[:500]}..."
-    return f"Clipboard contents: {content}"
-
-
-@function_tool() # working
-async def select_all_and_copy(context: RunContext) -> str:
-    """
-    Press Ctrl+A to select all, then Ctrl+C to copy.
-    Returns the copied text. Great for reading message counts or full text field content.
-    """
-    _xdo("key", "ctrl+a")
-    time.sleep(0.1)
-    _xdo("key", "ctrl+c")
-    time.sleep(0.15)
-    content = _clip_paste()
-    if not content:
-        return "Nothing was copied (selection may be empty)."
-    if len(content) > 600:
-        return f"Copied text (truncated): {content[:600]}..."
-    return f"Copied text: {content}"
+    return gnome.get_screen_size_str()
 
 
 # ─────────────────────────────────────────────
 # SYSTEM TOOLS
 # ─────────────────────────────────────────────
 
-@function_tool() # working
+# Blocked commands for safety
+BLOCKED_COMMANDS = {
+    "rm",
+    "mv",
+    "dd",
+    "mkfs",
+    "kill",
+    "killall",
+    "pkill",
+    "chmod",
+    "chown",
+    "sudo",
+    "su",
+    "shutdown",
+    "reboot",
+    "systemctl",
+    "init",
+    "halt",
+    "poweroff",
+}
+
+
+@function_tool
+async def send_whatsapp_message(
+    context: RunContext, contact_name: str, message: str
+) -> str:
+    """
+    Send a WhatsApp message via WhatsApp Web.
+    Assumes WhatsApp Web is already open in a browser and logged in.
+
+    Args:
+        contact_name: Name of the contact or group to message
+        message: The message text to send
+    """
+    try:
+        # Click on search bar (position: 132, 145)
+        ydotool.click(132, 145, button=1)
+        time.sleep(0.3)
+
+        # Type contact name
+        ydotool.type_text(contact_name)
+        time.sleep(0.5)
+
+        # Press Enter to select first result
+        ydotool.press_key("return")
+        time.sleep(0.4)
+
+        # Type the message
+        ydotool.type_text(message)
+        time.sleep(0.2)
+
+        # Press Enter to send
+        ydotool.press_key("return")
+
+        return f"Sent WhatsApp message to '{contact_name}': {message[:50]}{'...' if len(message) > 50 else ''}"
+
+    except Exception as e:
+        return f"WhatsApp message failed: {e}"
+
+
+@function_tool
 async def run_command_silent(context: RunContext, command: str) -> str:
     """
     Run a shell command instantly and return its output.
@@ -357,6 +383,11 @@ async def run_command_silent(context: RunContext, command: str) -> str:
     Args:
         command: Shell command to run (e.g. 'ls ~/Downloads', 'whoami', 'date').
     """
+    # Safety check
+    first_word = command.strip().split()[0] if command.strip() else ""
+    if first_word in BLOCKED_COMMANDS:
+        return f"Blocked: '{first_word}' is not allowed for safety reasons"
+
     try:
         result = subprocess.run(
             command, shell=True, capture_output=True, text=True, timeout=8
@@ -369,28 +400,3 @@ async def run_command_silent(context: RunContext, command: str) -> str:
         return "Command timed out after 8 seconds."
     except Exception as e:
         return f"Error: {e}"
-
-
-@function_tool() # working
-async def get_screen_size(context: RunContext) -> str:
-    """
-    Screen size: 1920x1080 pixels
-    """
-    # r = subprocess.run(
-    #     ["xdotool", "getdisplaygeometry"],
-    #     capture_output=True, text=True
-    # )
-    # w, h = r.stdout.strip().split()
-    # return f"Screen size: {w}x{h} pixels"
-    return "Screen size: 1920x1080 pixels"
-
-
-@function_tool() # not working
-async def get_mouse_position(context: RunContext) -> str:
-    """
-    Get the current mouse cursor position on screen.
-    """
-    r = _xdo("getmouselocation", "--shell")
-    lines = dict(line.split("=") for line in r.stdout.strip().split("\n") if "=" in line)
-    x, y = lines.get("X", "?"), lines.get("Y", "?")
-    return f"Mouse is at ({x}, {y})"

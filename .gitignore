@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 crix-capabilities.md
 .gitignore
+experiments

@@ -1,24 +1,18 @@
 from dotenv import load_dotenv
 from prompts.crix import SYSTEM_PROMPT
-import subprocess
-import time
 
-from livekit import agents, rtc
+from livekit import rtc
 from livekit.agents import (
     Agent,
     AgentServer,
     AgentSession,
     JobContext,
-    RunContext,
     cli,
-    function_tool,
     inference,
     room_io,
-    RoomInputOptions,
 )
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
-from tavily import TavilyClient
 
 from tools import (
     type_text,
@@ -30,7 +24,7 @@ from tools import (
     double_click,
     scroll,
     switch_workspace,
-    # focus_window,
+    focus_window,
     list_open_windows,
     open_app,
     read_screen_text,
@@ -38,12 +32,13 @@ from tools import (
     select_all_and_copy,
     run_command_silent,
     get_screen_size,
-    get_mouse_position,
     web_search,
     get_time,
+    send_whatsapp_message,
 )
 
 load_dotenv(".env")
+
 
 class Assistant(Agent):
     def __init__(self) -> None:
@@ -59,7 +54,7 @@ class Assistant(Agent):
                 double_click,
                 scroll,
                 switch_workspace,
-                # focus_window,
+                focus_window,
                 list_open_windows,
                 open_app,
                 read_screen_text,
@@ -67,20 +62,24 @@ class Assistant(Agent):
                 select_all_and_copy,
                 run_command_silent,
                 get_screen_size,
-                get_mouse_position,
                 web_search,
                 get_time,
+                send_whatsapp_message,
             ],
         )
 
+
 server = AgentServer()
+
 
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: JobContext):
     session = AgentSession(
         stt=inference.STT(model="deepgram/nova-3", language="multi"),
         llm=inference.LLM(model="openai/gpt-4.1-mini"),
-        tts=inference.TTS(model="elevenlabs/eleven_turbo_v2_5",voice="iP95p4xoKVk53GoZ742B"),
+        tts=inference.TTS(
+            model="elevenlabs/eleven_turbo_v2_5", voice="iP95p4xoKVk53GoZ742B"
+        ),
         vad=silero.VAD.load(),
         turn_detection=MultilingualModel(),
         preemptive_generation=True,
@@ -91,10 +90,12 @@ async def my_agent(ctx: JobContext):
         agent=Assistant(),
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: noise_cancellation.BVCTelephony()
-                if params.participant.kind 
-                == rtc.ParticipantKind.PARTICIPANT_KIND_SIP 
-                else noise_cancellation.BVC(),
+                noise_cancellation=lambda params: (
+                    noise_cancellation.BVCTelephony()
+                    if params.participant.kind
+                    == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+                    else noise_cancellation.BVC()
+                ),
             ),
         ),
     )

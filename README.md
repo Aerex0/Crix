@@ -16,8 +16,8 @@
 - 🎙️ **Real-time voice interaction** — Talk to Crix naturally using state-of-the-art speech recognition
 - ⌨️ **Keyboard control** — Type text, press shortcuts, and submit forms by voice
 - 🖱️ **Mouse control** — Move, click, double-click, and scroll anywhere on screen
-- 🪟 **Window & Workspace management** — Switch workspaces, list open windows, and launch apps
-- 📋 **Clipboard integration** — Read and write clipboard content using `xclip`
+- 🪟 **Window & Workspace management** — Switch workspaces, focus windows, list open apps
+- 📋 **Clipboard integration** — Read and write clipboard content using `wl-clipboard`
 - 🔍 **Live web search** — Fetches up-to-date information from the web using Tavily
 - 🖥️ **Shell command execution** — Run safe, non-destructive shell commands on demand
 - 🔇 **Noise cancellation** — Intelligent audio filtering for cleaner voice input
@@ -33,8 +33,11 @@
 | Language Model (LLM) | OpenAI GPT-4.1 Mini |
 | Text-to-Speech (TTS) | ElevenLabs Turbo v2.5 |
 | Voice Activity Detection (VAD) | Silero |
-| Desktop Automation | `xdotool` |
-| Clipboard | `xclip` |
+| Input Simulation | `ydotool` (Wayland-native) |
+| Window/Workspace Control | `gdbus` (GNOME Shell native) |
+| Clipboard | `wl-clipboard` |
+| Screenshots | `grim` |
+| Scroll (fallback) | `xdotool` |
 | Web Search | [Tavily](https://tavily.com) |
 | Package Manager | [uv](https://github.com/astral-sh/uv) |
 
@@ -42,16 +45,50 @@
 
 ## Prerequisites
 
-- **Linux** (X11 recommended; some tools may work partially on Wayland)
+- **Linux** with **GNOME on Wayland** (other compositors may need adaptation)
 - **Python 3.12+**
 - [`uv`](https://github.com/astral-sh/uv) package manager
-- System dependencies:
-  ```bash
-  sudo apt install xdotool xclip
-  ```
 - A LiveKit account and project ([cloud.livekit.io](https://cloud.livekit.io))
 - A [Tavily](https://tavily.com) API key for web search
 - STT, LLM, and TTS are handled by **LiveKit** — no separate API keys needed for OpenAI, Deepgram, or ElevenLabs
+
+### System Dependencies
+
+```bash
+# Arch Linux
+sudo pacman -S ydotool wl-clipboard grim xdotool tesseract
+
+# Debian/Ubuntu
+sudo apt install ydotool wl-clipboard grim xdotool tesseract-ocr
+
+# Fedora
+sudo dnf install ydotool wl-clipboard grim xdotool tesseract
+```
+
+### Enable ydotoold Daemon
+
+ydotool requires its daemon to be running:
+
+```bash
+# Enable and start the daemon (system-wide)
+sudo systemctl enable --now ydotoold
+
+# Or run as a user service (may require uinput permissions)
+systemctl --user enable --now ydotoold
+```
+
+### Verify Installation
+
+```bash
+# Test ydotool (should type "hello" at cursor)
+ydotool type "hello"
+
+# Test wl-clipboard
+echo "test" | wl-copy && wl-paste
+
+# Test grim (should save screenshot)
+grim /tmp/test.png && ls -la /tmp/test.png
+```
 
 ---
 
@@ -98,14 +135,13 @@ Once running, connect to the agent via any LiveKit-compatible client (e.g. the L
 
 ## Customization
 
-Before using Crix, **you must update the system prompt** to match your desktop environment. Open `src/prompts/crix.py` and adjust it to reflect:
+Before using Crix, **you may want to update the system prompt** to match your preferences. Open `src/prompts/crix.py` and adjust it to reflect:
 
-- **Your keyboard shortcuts** — e.g. how you close a window, open a terminal, or switch workspaces may differ between desktop environments (GNOME, KDE, i3, Hyprland, etc.)
-- **Your default apps** — e.g. your terminal emulator (`alacritty`, `kitty`, `gnome-terminal`), browser (`firefox`, `brave`), etc.
-- **Your workspace setup** — how many workspaces you use and how they're numbered
+- **Your default apps** — e.g. your terminal emulator (`gnome-terminal`, `kitty`, `alacritty`), browser (`firefox`, `brave`), etc.
+- **Your preferred shortcuts** — e.g. how you close a window (`alt+f4`, `super+q`)
 
-> [!IMPORTANT]
-> The default prompt is configured for a specific setup. If your shortcuts or apps differ, Crix may send the wrong keys or open the wrong applications. Tailor the prompt to your environment for the best experience.
+> [!NOTE]
+> The default prompt is configured for GNOME on Wayland. Workspace switching uses native GNOME APIs via gdbus, so it should work out of the box.
 
 ---
 
@@ -130,15 +166,17 @@ Crix comes with a set of built-in tools it can call autonomously based on your v
 ### 🖱️ Mouse
 | Tool | Description |
 |---|---|
+| `move_mouse` | Move cursor to absolute screen coordinates |
 | `click` | Click at a given position (left, middle, or right button) |
 | `double_click` | Double-click at a given position |
 | `scroll` | Scroll up or down at the current cursor position |
 
-
 ### 🪟 Windows & Apps
 | Tool | Description |
 |---|---|
-| `switch_workspace` | Switch to a specific virtual desktop (1-based) |
+| `switch_workspace` | Switch to a specific workspace (1-based) via GNOME API |
+| `focus_window` | Focus a window by name (partial match) |
+| `list_open_windows` | List all open windows |
 | `open_app` | Launch an application by command name |
 
 ### 📋 Clipboard & Screen
@@ -147,6 +185,7 @@ Crix comes with a set of built-in tools it can call autonomously based on your v
 | `get_clipboard` | Read the current clipboard contents |
 | `select_all_and_copy` | Press `Ctrl+A` then `Ctrl+C` and return copied text |
 | `get_screen_size` | Return the current screen resolution |
+| `read_screen_text` | OCR the screen to read visible text |
 
 ### 🖥️ System
 | Tool | Description |
@@ -158,13 +197,17 @@ Crix comes with a set of built-in tools it can call autonomously based on your v
 ## Example Commands
 
 ```
-"Open a terminal"               → Launches Alacritty
+"Open a terminal"               → Launches gnome-terminal
+"Open Firefox"                  → Launches Firefox
+"Switch to Firefox"             → Focuses the Firefox window
 "Switch to workspace 3"         → Switches to virtual desktop 3
 "Type hello world and send it"  → Types and submits text
 "What time is it?"              → Returns current date and time
 "Search for the latest AI news" → Performs a live web search
 "Press Ctrl+Z"                  → Sends the undo shortcut
 "Select all and copy"           → Copies all text in the focused window
+"What windows are open?"        → Lists all open windows
+"Close this window"             → Sends Alt+F4
 ```
 
 ---
@@ -188,29 +231,52 @@ Crix is designed with the following hard rules baked into its system prompt:
 ```
 crix/
 ├── src/
-│   ├── agent.py              # LiveKit agent setup, session, and tool registration
-│   ├── tools.py              # All function tools (keyboard, mouse, clipboard, etc.)
+│   ├── agent.py              # LiveKit agent setup and tool registration
+│   ├── tools.py              # Tool function definitions
+│   ├── keycodes.py           # Linux keycode mapping for ydotool
 │   ├── __init__.py
+│   ├── backends/             # Backend implementations
+│   │   ├── __init__.py
+│   │   ├── ydotool.py        # Input simulation (keyboard, mouse)
+│   │   ├── gnome.py          # GNOME Shell integration via gdbus
+│   │   ├── clipboard.py      # wl-clipboard wrapper
+│   │   ├── screenshot.py     # grim wrapper
+│   │   └── legacy.py         # xdotool fallback (scroll only)
 │   └── prompts/
-│       ├── crix.py           # System prompt defining Crix's behavior and rules
+│       ├── crix.py           # System prompt defining behavior and rules
 │       └── __init__.py
 ├── LICENSE
 ├── README.md
+├── plan.md                   # Migration plan documentation
 ├── pyproject.toml            # Project metadata and dependencies
 └── uv.lock
 ```
 
 ---
 
-## Planned Features & Future Work
+## Architecture
 
-The following tools and improvements are actively being worked on:
-
-- **Screen Read (`read_screen_text`)**: OCR-based screen reading using Tesseract to allow Crix to "see" on-screen content and answer questions about it.
-- **Mouse Movement (`move_mouse`)**: Moving the mouse cursor to specific screen coordinates via `xdotool` is not yet reliably working.
-- **Window Focus (`list_open_windows` / `focus_window`)**: Detect and focus any open window by name, enabling seamless app switching.
-- **Prompt Improvement**: Expanding the system prompt with richer context and more example patterns for better command understanding.
-- **Multi-monitor support**: Extend screen tooling to handle setups with more than one display.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CRIX TOOLS                              │
+├─────────────────────────────────────────────────────────────────┤
+│  INPUT (ydotool)         │  DESKTOP (gdbus → GNOME)             │
+│  ──────────────────      │  ───────────────────────             │
+│  • type_text             │  • switch_workspace                  │
+│  • press_key             │  • focus_window                      │
+│  • move_mouse            │  • list_open_windows                 │
+│  • click / double_click  │  • get_screen_size                   │
+├──────────────────────────┼──────────────────────────────────────┤
+│  CLIPBOARD (wl-clipboard)│  LEGACY (xdotool)                    │
+│  ───────────────────     │  ─────────────                       │
+│  • get_clipboard         │  • scroll                            │
+│  • paste_text            │                                      │
+├──────────────────────────┼──────────────────────────────────────┤
+│  SCREENSHOT (grim)       │  UNCHANGED                           │
+│  ─────────────────       │  ─────────                           │
+│  • read_screen_text      │  • web_search, get_time, open_app    │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
