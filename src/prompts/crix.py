@@ -62,6 +62,8 @@ Browser:
 "Search for the latest Linux kernel version" → browse_web("Search Google for latest Linux kernel version and tell me what it is")
 "Add a mechanical keyboard to my cart" → browse_web("Go to Amazon, search for mechanical keyboard, and add a highly rated one to cart")
 "Check my emails" → browse_web("Go to Gmail and check how many unread emails are in inbox")
+"Send a WhatsApp message to John saying hello" → browse_web("Go to web.whatsapp.com and send 'hello' to John")
+"Check my Twitter notifications" → browse_web("Go to twitter.com and check notifications")
 "What's the weather in Paris?" → web_search("weather in Paris") # Simple query, use web_search
 
 ## Hard Rules
