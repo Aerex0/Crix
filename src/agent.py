@@ -34,7 +34,6 @@ from tools import (
     get_screen_size,
     web_search,
     get_time,
-    send_whatsapp_message,
     browse_web,
 )
 
@@ -65,7 +64,6 @@ class Assistant(Agent):
                 get_screen_size,
                 web_search,
                 get_time,
-                send_whatsapp_message,
                 browse_web,
             ],
         )

@@ -336,44 +336,6 @@ BLOCKED_COMMANDS = {
 
 
 @function_tool
-async def send_whatsapp_message(
-    context: RunContext, contact_name: str, message: str
-) -> str:
-    """
-    Send a WhatsApp message via WhatsApp Web.
-    Assumes WhatsApp Web is already open in a browser and logged in.
-
-    Args:
-        contact_name: Name of the contact or group to message
-        message: The message text to send
-    """
-    try:
-        # Click on search bar (position: 132, 145)
-        ydotool.click(132, 145, button=1)
-        time.sleep(0.3)
-
-        # Type contact name
-        ydotool.type_text(contact_name)
-        time.sleep(0.5)
-
-        # Press Enter to select first result
-        ydotool.press_key("return")
-        time.sleep(0.4)
-
-        # Type the message
-        ydotool.type_text(message)
-        time.sleep(0.2)
-
-        # Press Enter to send
-        ydotool.press_key("return")
-
-        return f"Sent WhatsApp message to '{contact_name}': {message[:50]}{'...' if len(message) > 50 else ''}"
-
-    except Exception as e:
-        return f"WhatsApp message failed: {e}"
-
-
-@function_tool
 async def run_command_silent(context: RunContext, command: str) -> str:
     """
     Run a shell command instantly and return its output.
