@@ -54,7 +54,7 @@ class BrowserBackend:
         if os.getenv("GOOGLE_API_KEY"):
             from browser_use import ChatGoogle
 
-            model = os.getenv("BROWSER_USE_GOOGLE_MODEL", "gemini-2.0-flash-exp")
+            model = os.getenv("BROWSER_USE_GOOGLE_MODEL", "gemini-flash-latest")
             return ChatGoogle(model=model)
 
         # Try Ollama (local)
@@ -111,7 +111,7 @@ class BrowserBackend:
             max_steps: Maximum steps the agent can take
 
         Returns:
-            Result summary of what was accomplished
+            Detailed result with success/failure status, actions taken, and errors
         """
         try:
             browser = await self._get_or_create_browser()
@@ -128,17 +128,106 @@ class BrowserBackend:
             # Run the agent
             history = await agent.run()
 
-            # Extract meaningful result
-            if history and history.final_result():
-                return f"Browser task completed: {history.final_result()}"
+            # Handle case where history is None or empty
+            if not history:
+                return (
+                    f"❌ Browser task FAILED: No history returned.\n"
+                    f"Task: {task}\n"
+                    f"Error: The browser agent did not execute any steps. "
+                    f"This may indicate a configuration or initialization issue."
+                )
+
+            # Extract the final result from history
+            final_result = history.final_result()
+
+            # Get action history if available
+            action_summary = ""
+            if hasattr(history, "actions") and history.actions:
+                action_count = len(history.actions)
+                action_summary = f"\n📊 Actions taken: {action_count} steps"
+
+                # Include details of last few actions for context
+                last_actions = (
+                    history.actions[-3:] if action_count > 3 else history.actions
+                )
+                action_details = []
+                for action in last_actions:
+                    action_str = str(action)
+                    # Truncate long action strings
+                    if len(action_str) > 100:
+                        action_str = action_str[:97] + "..."
+                    action_details.append(f"  • {action_str}")
+
+                if action_details:
+                    action_summary += "\n" + "\n".join(action_details)
+
+            # Check if the task actually succeeded
+            if final_result:
+                # Task completed with a result
+                result_str = str(final_result)
+
+                # Check for common failure indicators in the result
+                failure_indicators = [
+                    "failed",
+                    "error",
+                    "could not",
+                    "unable to",
+                    "cannot",
+                    "unsuccessful",
+                    "did not work",
+                ]
+
+                result_lower = result_str.lower()
+                appears_failed = any(
+                    indicator in result_lower for indicator in failure_indicators
+                )
+
+                if appears_failed:
+                    return (
+                        f"⚠️ Browser task completed with ERRORS:\n"
+                        f"Result: {result_str}{action_summary}\n\n"
+                        f"The task may have partially failed. Please verify the result."
+                    )
+                else:
+                    return (
+                        f"✅ Browser task SUCCEEDED:\n"
+                        f"Result: {result_str}{action_summary}"
+                    )
             else:
-                return f"Browser task '{task}' completed successfully."
+                # No final result, but history exists
+                # Check if max_steps was reached
+                if hasattr(history, "actions") and len(history.actions) >= max_steps:
+                    return (
+                        f"⚠️ Browser task reached MAX STEPS ({max_steps}) without completion:\n"
+                        f"Task: {task}{action_summary}\n\n"
+                        f"The task may be too complex or require more steps. "
+                        f"Consider breaking it into smaller tasks or increasing max_steps."
+                    )
+                else:
+                    return (
+                        f"⚠️ Browser task completed but returned NO RESULT:\n"
+                        f"Task: {task}{action_summary}\n\n"
+                        f"The agent finished but didn't provide a final result. "
+                        f"This may indicate the task was ambiguous or couldn't be completed."
+                    )
 
         except ValueError as e:
             # LLM configuration error
-            return f"Browser automation configuration error: {str(e)}"
+            return (
+                f"❌ Browser automation CONFIGURATION ERROR:\n"
+                f"{str(e)}\n\n"
+                f"Fix: Set up an LLM API key in your environment variables."
+            )
         except Exception as e:
-            return f"Browser automation error: {str(e)}"
+            # Other errors (network, browser crash, etc.)
+            error_msg = str(e)
+            return (
+                f"❌ Browser automation EXCEPTION:\n"
+                f"Task: {task}\n"
+                f"Error: {error_msg}\n\n"
+                f"This is an unexpected error. Check your browser configuration, "
+                f"network connection, and ensure the website is accessible."
+            )
 
     async def close(self):
         """Close the browser instance."""
