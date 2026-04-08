@@ -145,9 +145,7 @@ async def my_agent(ctx: JobContext):
 
         ctx.add_shutdown_callback(_flush_memory_on_shutdown)
 
-    await session.generate_reply(
-        instructions="Welcome your boss and offer your assistance."
-    )
+    await session.generate_reply()
 
 
 if __name__ == "__main__":
