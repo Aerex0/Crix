@@ -8,6 +8,7 @@ This package provides backend implementations for:
 - screenshot: grim wrapper
 - legacy: xdotool fallback for unsupported features (scroll)
 - browser: Web automation via browser-use
+- memory: File-backed persistent memory
 """
 
 from . import ydotool
@@ -16,6 +17,7 @@ from . import clipboard
 from . import screenshot
 from . import legacy
 from . import browser
+from . import memory
 
 __all__ = [
     "ydotool",
@@ -24,4 +26,5 @@ __all__ = [
     "screenshot",
     "legacy",
     "browser",
+    "memory",
 ]

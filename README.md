@@ -19,6 +19,7 @@
 - 🪟 **Window & Workspace management** — Switch workspaces, focus windows, list open apps
 - 📋 **Clipboard integration** — Read and write clipboard content using `wl-clipboard`
 - 🌐 **Browser automation** — Navigate websites, fill forms, shop online, check email via natural language
+- 🧠 **Persistent memory** — Remembers preferences, routines, and important outcomes across sessions
 - 🔍 **Live web search** — Fetches up-to-date information from the web using Tavily
 - 🖥️ **Shell command execution** — Run safe, non-destructive shell commands on demand
 - 🔇 **Noise cancellation** — Intelligent audio filtering for cleaner voice input
@@ -40,6 +41,7 @@
 | Screenshots | `grim` |
 | Scroll (fallback) | `xdotool` |
 | Browser Automation | [browser-use](https://github.com/browser-use/browser-use) |
+| Memory | File-backed (`MEMORY.md` + `memory/*.md`) |
 | Web Search | [Tavily](https://tavily.com) |
 | Package Manager | [uv](https://github.com/astral-sh/uv) |
 
@@ -221,6 +223,36 @@ Once running, connect to the agent via any LiveKit-compatible client (e.g. the L
 
 ---
 
+## Memory
+
+Crix includes persistent memory to improve continuity across sessions.
+
+- `MEMORY.md` stores durable long-term notes (preferences, routines, decisions)
+- `memory/YYYY-MM-DD.md` stores append-only daily/session memory entries
+- Memory is loaded at startup and flushed on shutdown (if enabled)
+
+### Memory Environment Variables
+
+```env
+CRIX_MEMORY_ENABLED=true
+CRIX_MEMORY_FILE=MEMORY.md
+CRIX_MEMORY_DIR=memory
+CRIX_MEMORY_MAX_CONTEXT_CHARS=3500
+CRIX_MEMORY_SEARCH_LIMIT=5
+CRIX_MEMORY_FLUSH_ENABLED=true
+```
+
+### Memory Tools
+
+- `save_memory` for durable facts
+- `memory_search` to find relevant past context
+- `memory_get` to read targeted snippets
+
+> [!NOTE]
+> Crix redacts obvious secret-like values when writing memory entries.
+
+---
+
 ## Customization
 
 Before using Crix, **you may want to update the system prompt** to match your preferences. Open `src/prompts/crix.py` and adjust it to reflect:
@@ -247,6 +279,13 @@ Crix comes with a set of built-in tools it can call autonomously based on your v
 |---|---|
 | `web_search` | Search the web for up-to-date information using Tavily (fast, for simple queries) |
 | `get_time` | Get the current system date and time |
+
+### 🧠 Memory
+| Tool | Description |
+|---|---|
+| `save_memory` | Save durable preferences/decisions/todos to persistent memory |
+| `memory_search` | Search `MEMORY.md` and `memory/*.md` for prior context |
+| `memory_get` | Read a focused line range from a memory file |
 
 ### ⌨️ Keyboard
 | Tool | Description |

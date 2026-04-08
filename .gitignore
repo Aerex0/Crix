@@ -9,3 +9,7 @@ __pycache__/
 crix-capabilities.md
 .gitignore
 experiments
+
+# Local assistant memory
+MEMORY.md
+memory/

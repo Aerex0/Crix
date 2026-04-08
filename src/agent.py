@@ -14,6 +14,16 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+from backends.memory import (
+    build_memory_context,
+    ensure_memory_files,
+    flush_session_memory,
+)
+from config import (
+    get_memory_enabled,
+    get_memory_flush_enabled,
+    get_memory_max_context_chars,
+)
 from tools import (
     type_text,
     press_key,
@@ -35,15 +45,18 @@ from tools import (
     web_search,
     get_time,
     browse_web,
+    save_memory,
+    memory_search,
+    memory_get,
 )
 
 load_dotenv(".env")
 
 
 class Assistant(Agent):
-    def __init__(self) -> None:
+    def __init__(self, instructions: str = SYSTEM_PROMPT) -> None:
         super().__init__(
-            instructions=SYSTEM_PROMPT,
+            instructions=instructions,
             tools=[
                 type_text,
                 press_key,
@@ -65,6 +78,9 @@ class Assistant(Agent):
                 web_search,
                 get_time,
                 browse_web,
+                save_memory,
+                memory_search,
+                memory_get,
             ],
         )
 
@@ -74,6 +90,19 @@ server = AgentServer()
 
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: JobContext):
+    memory_enabled = get_memory_enabled()
+    memory_instructions = SYSTEM_PROMPT
+    if memory_enabled:
+        ensure_memory_files()
+        memory_context = build_memory_context(get_memory_max_context_chars())
+        if memory_context:
+            memory_instructions = (
+                f"{SYSTEM_PROMPT}\n\n"
+                "## Memory Context Snapshot\n"
+                "Use this for continuity, but verify with memory_search/memory_get when needed.\n"
+                f"{memory_context}"
+            )
+
     session = AgentSession(
         stt=inference.STT(model="deepgram/nova-3", language="multi"),
         llm=inference.LLM(model="openai/gpt-4.1-mini"),
@@ -87,7 +116,7 @@ async def my_agent(ctx: JobContext):
 
     await session.start(
         room=ctx.room,
-        agent=Assistant(),
+        agent=Assistant(instructions=memory_instructions),
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda params: (
@@ -99,6 +128,22 @@ async def my_agent(ctx: JobContext):
             ),
         ),
     )
+
+    if memory_enabled and get_memory_flush_enabled():
+
+        async def _flush_memory_on_shutdown(reason: str) -> None:
+            try:
+                history_dict = session.history.to_dict(
+                    exclude_image=True,
+                    exclude_audio=True,
+                    exclude_metrics=True,
+                )
+                result = flush_session_memory(history_dict)
+                print(f"Memory flush on shutdown ({reason}): {result}")
+            except Exception as e:
+                print(f"Memory flush failed ({reason}): {e}")
+
+        ctx.add_shutdown_callback(_flush_memory_on_shutdown)
 
     await session.generate_reply(
         instructions="Welcome your boss and offer your assistance."

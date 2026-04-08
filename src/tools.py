@@ -20,6 +20,9 @@ from livekit.agents import function_tool, RunContext
 from tavily import TavilyClient
 
 from backends import ydotool, gnome, clipboard, screenshot, legacy
+from backends.memory import append_memory_entry, memory_get as memory_get_snippet
+from backends.memory import memory_search as memory_search_backend
+from config import get_memory_default_search_limit
 
 
 # ─────────────────────────────────────────────
@@ -48,6 +51,71 @@ async def get_time(context: RunContext) -> str:
     Use this when asked about the current time or date.
     """
     return f"Current date and time: {time.ctime()}"
+
+
+@function_tool
+async def save_memory(
+    context: RunContext,
+    note: str,
+    category: str = "general",
+    confidence: float = 0.8,
+) -> str:
+    """
+    Save durable user memory for future sessions.
+    Use this for preferences, routines, decisions, and important follow-ups.
+
+    Args:
+        note: The memory text to persist
+        category: Memory category (general, preference, routine, todo, session)
+        confidence: Confidence score from 0.0 to 1.0
+    """
+    clamped_confidence = max(0.0, min(1.0, confidence))
+    return append_memory_entry(
+        note,
+        category=category,
+        source="tool",
+        confidence=clamped_confidence,
+    )
+
+
+@function_tool
+async def memory_search(
+    context: RunContext, query: str, limit: int | None = None
+) -> str:
+    """
+    Search MEMORY.md and memory/*.md for relevant prior context.
+
+    Args:
+        query: What memory to look up
+        limit: Maximum number of hits
+    """
+    max_hits = limit if limit is not None else get_memory_default_search_limit()
+    hits = memory_search_backend(query, limit=max_hits)
+    if not hits:
+        return "No matching memory found"
+
+    lines = [f"Found {len(hits)} memory hits:"]
+    for hit in hits:
+        lines.append(f"- {hit.path}:{hit.line} (score={hit.score}) {hit.text}")
+    return "\n".join(lines)
+
+
+@function_tool
+async def memory_get(
+    context: RunContext,
+    path: str,
+    from_line: int = 1,
+    lines: int = 20,
+) -> str:
+    """
+    Read a focused snippet from a memory file returned by memory_search.
+
+    Args:
+        path: Relative file path (MEMORY.md or memory/*.md)
+        from_line: Start line number
+        lines: Number of lines to read
+    """
+    return memory_get_snippet(path=path, from_line=from_line, lines=lines)
 
 
 # ─────────────────────────────────────────────
