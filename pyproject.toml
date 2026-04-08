@@ -10,6 +10,7 @@ dependencies = [
     "livekit-plugins-noise-cancellation~=0.2",
     "livekit-wakeword",
     "pillow>=12.1.1",
+    "pyaudio>=0.2.14",
     "pytesseract>=0.3.13",
     "python-dotenv>=1.2.1",
     "python-xlib>=0.33",
