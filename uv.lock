@@ -499,6 +499,7 @@ dependencies = [
     { name = "browser-use" },
     { name = "livekit-agents", extra = ["silero", "turn-detector"] },
     { name = "livekit-plugins-noise-cancellation" },
+    { name = "livekit-wakeword" },
     { name = "pillow" },
     { name = "pytesseract" },
     { name = "python-dotenv" },
@@ -511,6 +512,7 @@ requires-dist = [
     { name = "browser-use", specifier = "==0.12.6" },
     { name = "livekit-agents", extras = ["silero", "turn-detector"], specifier = "~=1.4" },
     { name = "livekit-plugins-noise-cancellation", specifier = "~=0.2" },
+    { name = "livekit-wakeword", git = "https://github.com/livekit/livekit-wakeword.git" },
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "pytesseract", specifier = ">=0.3.13" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
@@ -1309,6 +1311,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/df/6c/f5f7cb226441b3a357c2ea5444899b133dd13a5875894c6a9cd52fc5aa74/livekit_protocol-1.1.2.tar.gz", hash = "sha256:4550bf78fb9d365f19ea9875e565d86a2fb798854c8bd2e9100d7f7640dd9072", size = 79620, upload-time = "2026-01-20T01:27:23.437Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/55/f9/40e81d1b126d79a00b4a8a472a4f7c655b0a7736bb4d08f936be550b3bd8/livekit_protocol-1.1.2-py3-none-any.whl", hash = "sha256:8a26d592a87f5f70fee23aa88e47490727158ee8799c82742585aa8f73b160c5", size = 98854, upload-time = "2026-01-20T01:27:22.139Z" },
+]
+
+[[package]]
+name = "livekit-wakeword"
+version = "0.1.4.dev1+g00502c468"
+source = { git = "https://github.com/livekit/livekit-wakeword.git#00502c4685bd6722431b321450bae05ee567a30d" }
+dependencies = [
+    { name = "numpy" },
+    { name = "onnxruntime" },
 ]
 
 [[package]]

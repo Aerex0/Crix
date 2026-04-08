@@ -1,0 +1,10 @@
+model_name: hey_crix
+target_phrases:
+  - "hey crix"
+
+n_samples: 10000
+model:
+  model_type: conv_attention
+  model_size: small
+steps: 50000
+target_fp_per_hour: 0.2

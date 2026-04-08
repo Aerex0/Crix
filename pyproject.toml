@@ -8,9 +8,13 @@ dependencies = [
     "browser-use==0.12.6",
     "livekit-agents[silero,turn-detector]~=1.4",
     "livekit-plugins-noise-cancellation~=0.2",
+    "livekit-wakeword",
     "pillow>=12.1.1",
     "pytesseract>=0.3.13",
     "python-dotenv>=1.2.1",
     "python-xlib>=0.33",
     "tavily-python>=0.7.22",
 ]
+
+[tool.uv.sources]
+livekit-wakeword = { git = "https://github.com/livekit/livekit-wakeword.git" }

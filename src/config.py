@@ -64,3 +64,35 @@ def get_memory_default_search_limit() -> int:
 def get_memory_flush_enabled() -> bool:
     """Whether shutdown/session memory flush is enabled."""
     return _env_bool("CRIX_MEMORY_FLUSH_ENABLED", True)
+
+
+def get_wakeword_enabled() -> bool:
+    """Whether wake word detection is enabled."""
+    return _env_bool("CRIX_WAKEWORD_ENABLED", True)
+
+
+def get_wakeword_model_path() -> str:
+    """Path to the wake word model."""
+    return os.getenv("CRIX_WAKEWORD_MODEL_PATH", "models/hey_livekit.onnx")
+
+
+def get_wakeword_threshold() -> float:
+    """Wake word detection threshold."""
+    value = os.getenv("CRIX_WAKEWORD_THRESHOLD")
+    if value is None:
+        return 0.5
+    try:
+        return float(value)
+    except ValueError:
+        return 0.5
+
+
+def get_wakeword_debounce() -> float:
+    """Wake word debounce in seconds."""
+    value = os.getenv("CRIX_WAKEWORD_DEBOUNCE")
+    if value is None:
+        return 2.0
+    try:
+        return float(value)
+    except ValueError:
+        return 2.0

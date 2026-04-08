@@ -9,7 +9,12 @@ __pycache__/
 crix-capabilities.md
 .gitignore
 experiments
+WAKEWORD.md
 
 # Local assistant memory
 MEMORY.md
 memory/
+
+# Wake word data (generated)
+data/
+models/*.onnx
